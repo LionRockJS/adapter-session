@@ -1,0 +1,42 @@
+{
+  "type": "module",
+  "name": "@lionrockjs/adapter-session-jwt",
+  "version": "0.0.1",
+  "description": "LionRockJS session adapter using JWT",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --experimental-vm-modules ../../../node_modules/jest/bin/jest.js --coverage"
+  },
+  "jest": {
+    "verbose": true,
+    "transform": {},
+    "testMatch": [
+      "**/__tests__/**/*.[jt]s?(x)",
+      "**/?(*.)+(spec|test).[jt]s?(x)",
+      "**/?(*.)+(spec|test).mjs"
+    ],
+    "moduleFileExtensions": [
+      "js",
+      "jsx",
+      "mjs"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LionRockJS/adapter-session.git"
+  },
+  "keywords": [
+    "LionRock",
+    "session",
+    "jwt"
+  ],
+  "author": "Kojin Nakana",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/LionRockJS/adapter-session/issues"
+  },
+  "homepage": "https://github.com/LionRockJS/adapter-session#readme",
+  "dependencies": {
+    "jsonwebtoken": "^9.0.2"
+  }
+}
