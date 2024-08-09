@@ -1,0 +1,15 @@
+interface IName {
+    name: String
+}
+
+interface INode {
+    content: String
+    handle: String @unique @index
+    title: String
+    description: String
+}
+
+interface IKeyValuePair {
+    name: String @unique
+    value: String
+}

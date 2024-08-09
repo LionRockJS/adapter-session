@@ -1,0 +1,5 @@
+type Sessions{
+    sid: String! @unique @index
+    expired: Int! @default(value: 0)
+    sess: String
+}

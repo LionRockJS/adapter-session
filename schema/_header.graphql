@@ -1,0 +1,10 @@
+scalar Date
+scalar JSON
+union scalars = Int | Float | String | Boolean
+directive @default( value: scalars! ) on FIELD_DEFINITION
+
+directive @unique on FIELD_DEFINITION
+directive @index on FIELD_DEFINITION
+directive @foreignKey( value: String! ) on FIELD_DEFINITION
+directive @primary on FIELD_DEFINITION
+directive @autoIncrement on FIELD_DEFINITION
