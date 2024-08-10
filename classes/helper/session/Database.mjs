@@ -1,11 +1,11 @@
-import {AbstractHelperSession} from "@lionrockjs/mixin-session";
+import { AbstractAdapterSession } from "@lionrockjs/mixin-session";
 
 import {Central, ORM, HelperCrypto, ControllerMixinDatabase} from '@lionrockjs/central';
 
 import DefaultSession from '../../model/Session.mjs';
 const Session = await ORM.import('Session', DefaultSession);
 
-export default class HelperSessionSQLite extends AbstractHelperSession{
+export default class SessionDatabase extends AbstractAdapterSession{
   static async read(request, options) {
     const config = { ...Central.config.session, ...options };
     if(!request.cookies[config.name])return this.create();
