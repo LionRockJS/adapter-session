@@ -1,10 +1,10 @@
-import { Central } from '@lionrockjs/central';
 import { randomUUID } from 'node:crypto';
 import JWT from 'jsonwebtoken';
 
-import {AbstractHelperSession} from "@lionrockjs/mixin-session";
+import { AbstractAdapterSession } from "@lionrockjs/mixin-session";
+import { Central } from '@lionrockjs/central';
 
-export default class HelperSessionJWT extends AbstractHelperSession{
+export default class SessionJWT extends AbstractAdapterSession{
   static async read(request, options) {
     const config = { ...Central.config.session, ...options };
     if(!request.cookies[config.name])return this.create();
