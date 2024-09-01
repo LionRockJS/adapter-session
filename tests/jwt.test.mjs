@@ -20,4 +20,14 @@ describe('Test JWT', () => {
     const token = JWT.sign({ id: 'bar', sid: "foo", iat: 1, foo: "whatsup" }, 'shhhhh');
     expect(token).toBe('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJhciIsInNpZCI6ImZvbyIsImlhdCI6MSwiZm9vIjoid2hhdHN1cCJ9.6Hc-oWRfa2dvhSEKOtKER68LqaLj6DSqTxvIWILaVGg');
   });
+
+  test('verify expired', async()=>{
+    const token = JWT.sign({ id: 'bar', sid: "foo", iat: 1, foo: "whatsup", exp: Math.floor((Date.now()/1000)-60) }, 'shhhhh');
+    try{
+      const result = JWT.verify(token, 'shhhhh');
+      expect('this line should not run').toBe(true);
+    }catch(e){
+      expect(e.message).toBe('jwt expired');
+    }
+  })
 });

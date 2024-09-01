@@ -19,7 +19,10 @@ export default class SessionJWT extends AbstractAdapterSession{
   static async write(request, cookies, options) {
     const config = { ...Central.config.session, ...options };
     if(!request.session.id)request.session.id = randomUUID();
-    const jwt = JWT.sign(request.session, Central.config.session.secret);
+    const expire = Central.config.session.expires;
+
+    const data = Object.assign({}, request.session, { exp: Math.floor(Date.now() / 1000) + expire});
+    const jwt = JWT.sign(data, Central.config.session.secret);
 
     cookies.push({
       name: config.name,
