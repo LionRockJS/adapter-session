@@ -14,7 +14,8 @@ export default class SessionDatabase extends AbstractAdapterSession{
     const seg = signedSessionID.split('.');
     const sid = seg[0];
     const sign = seg[1];
-    const verify = await HelperCrypto.verify(config.secret, sign, sid);
+    const verify = await HelperCrypto.verify(
+      JSON.parse(Central.adapter.process().env.SESSION_SECRET), sign, sid);
 
     if (!verify) {
       return this.create();
@@ -36,7 +37,6 @@ export default class SessionDatabase extends AbstractAdapterSession{
     const database = options.state.get(ControllerMixinDatabase.DATABASES).get('session');
 
     const cookieConfig = Central.config.cookie;
-    const { secret } = config;
     const model = request.session.id ?
       await ORM.factory(Session, request.session.id, {database}):
       ORM.create(Session, { database });
@@ -50,7 +50,10 @@ export default class SessionDatabase extends AbstractAdapterSession{
     model.sess = JSON.stringify(data);
     await model.write();
 
-    const sign = await HelperCrypto.sign(secret, model.sid);
+    const sign = await HelperCrypto.sign(
+      JSON.parse(Central.adapter.process().env.SESSION_SECRET),
+      model.sid
+    );
     const cookieName = `${model.sid}.${sign}`;
 
     //if session cookie is same, no need to set cookie

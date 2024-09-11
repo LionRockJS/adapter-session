@@ -4,7 +4,12 @@ Central.addModules([ModDatabase]);
 
 Model.defaultAdapter = ORMAdapterSQLite;
 
-import {HelperSession} from '@lionrockjs/mixin-session';
-import HelperSessionDatabase from "../../../classes/helper/session/Database.mjs";
+import {ControllerMixinSession} from '@lionrockjs/mixin-session';
 
-HelperSession.defaultAdapter = HelperSessionDatabase;
+import SessionAdapterDatabase from "../../../classes/helper/session/Database.mjs";
+ControllerMixinSession.defaultAdapter = SessionAdapterDatabase;
+
+await Central.initConfig(new Map([
+  ['cookie', await import('./config/cookie.mjs')],
+  ['session', await import('./config/session.mjs')],
+]));

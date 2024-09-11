@@ -1,6 +1,9 @@
 import * as url from 'node:url';
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url)).replace(/\/$/, '');
 
+import dotenv from 'dotenv';
+dotenv.config({path: path.normalize(__dirname + '/.env')});
+
 import path from 'node:path';
 import fs from 'node:fs';
 import { Central, ControllerMixinDatabase } from '@lionrockjs/central';
@@ -46,10 +49,6 @@ describe('Test Session', () => {
 
   beforeEach(async () => {
     await Central.init({ EXE_PATH: `${__dirname}/test2` });
-    await Central.initConfig(new Map([
-      ['cookie', (await import('../config/cookie.mjs')).default],
-      ['session', (await import('../config/session.mjs')).default],
-    ]));
     Central.classPath.set('ControllerSession', path.normalize(`${__dirname}/../classes/ControllerSession.mjs`));
 //    await Central.flushCache();
   });
