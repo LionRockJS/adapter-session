@@ -9,7 +9,7 @@ export default class SessionJWT extends AbstractAdapterSession{
     const config = { ...Central.config.session, ...options };
     if(!cookies[config.name])return this.create();
 
-    return JWT.verify(cookies[config.name], Central.config.session.secret);
+    return JWT.verify(cookies[config.name], Central.adapter.process().env.SESSION_SECRET);
   }
 
   static async write(session, cookies, options) {
@@ -18,7 +18,7 @@ export default class SessionJWT extends AbstractAdapterSession{
     const expire = Central.config.session.expires;
 
     const data = Object.assign({}, session, { exp: Math.floor(Date.now() / 1000) + expire});
-    const jwt = JWT.sign(data, Central.config.session.secret);
+    const jwt = JWT.sign(data, Central.adapter.process().env.SESSION_SECRET);
 
     cookies.push({
       name: config.name,

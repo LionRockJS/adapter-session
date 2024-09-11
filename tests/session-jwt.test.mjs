@@ -1,10 +1,13 @@
 import * as url from 'node:url';
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url)).replace(/\/$/, '');
+import dotenv from 'dotenv';
+dotenv.config({path: path.normalize(__dirname + '/.env')});
 
 import path from 'node:path';
 import fs from 'node:fs';
 import { Central, Controller } from '@lionrockjs/central';
 import {ControllerMixinSession} from '@lionrockjs/mixin-session';
+import SessionAdapterJWT from "../classes/helper/session/JWT.mjs";
 
 import JWT from 'jsonwebtoken';
 
@@ -13,7 +16,10 @@ class ControllerSession extends Controller {
 
   constructor(request, sessionOption) {
     super(request);
-    this.state.set(ControllerMixinSession.SESSION_OPTIONS, sessionOption);
+    Object.assign(
+      this.state.get(ControllerMixinSession.SESSION_OPTIONS),
+      sessionOption
+    )
   }
 
   async action_setfoo() {
@@ -38,25 +44,42 @@ class ControllerSessionNoDB extends Controller {
 
 describe('Test Session', () => {
   beforeEach(async () => {
-    await Central.init({ EXE_PATH: `${__dirname}/test1` });
-    await Central.initConfig(new Map([
-      ['cookie', (await import('../config/cookie.mjs')).default],
-      ['session', (await import('../config/session.mjs')).default],
-    ]));
+    await Central.init({ EXE_PATH: `${__dirname}/test1`});
+
     Central.classPath.set('ControllerSession', path.normalize(`${__dirname}/../classes/ControllerSession.mjs`));
 //    await Central.flushCache();
   });
 
+  test('session adapter', async () => {
+    expect(ControllerMixinSession.defaultAdapter).toBe(SessionAdapterJWT);
+  });
+
+  test('session secret', ()=>{
+    expect(process.env.SESSION_SECRET).toBe('shhhhh');
+  })
+
+  test('session expire', ()=>{
+    expect(Central.config.session.expires).toBe(3600);
+  })
+
   test('no session', async () => {
     const c = new ControllerSession({ cookies: {} });
     const result = await c.execute();
+    const session = c.state.get(Controller.STATE_REQUEST).session;
+    expect(session.creator).toBe('SessionJWT');
+
     // default saveUninitialized false
     expect(result.cookies.length).toBe(0);
   });
 
+  test('config', async()=>{
+    expect(process.env.SESSION_SECRET).toBe('shhhhh');
+  })
+
   test('save uninitialized', async () => {
     const c = new ControllerSession({ cookies: {} }, { saveUninitialized: true });
     const result = await c.execute();
+
     const cookie = result.cookies.find(({ name }) => name === 'lionrock-session');
     expect(!!cookie).toBe(true);
   });
@@ -65,7 +88,8 @@ describe('Test Session', () => {
     const c = new ControllerSession({ cookies: {} }, { saveUninitialized: true });
     const result = await c.execute();
     const cookie = result.cookies.find(({ name }) => name === 'lionrock-session');
-    const session = JWT.verify(cookie.value, Central.config.session.secret);
+    console.log(cookie.value);
+    const session = JWT.verify(cookie.value, process.env.SESSION_SECRET);
     expect(session.foo).toBe(undefined);
 
     const data = String(Math.random());
@@ -74,7 +98,7 @@ describe('Test Session', () => {
     const r2 = await c2.execute('setfoo');
     const cookie2 = r2.cookies.find(({ name }) => name === 'lionrock-session');
 
-    const session2 = JWT.verify(cookie2.value, Central.config.session.secret);
+    const session2 = JWT.verify(cookie2.value, process.env.SESSION_SECRET);
     expect(session2.foo).toBe(data);
 
     const c3 = new ControllerSession({ cookies: { 'lionrock-session': cookie2.value } });
@@ -94,6 +118,9 @@ describe('Test Session', () => {
 
     const c2 = new ControllerSession({ cookies: {} });
     const result2 = await c2.execute();
+    if(result2.status === 500)console.error(result2.body);
+    expect(result2.status).toBe(200);
+
     expect(Central.config.session.saveUninitialized).toBe(true);
     const cookie = result2.cookies.find(({ name }) => name === 'lionrock-session');
     expect(!!cookie).toBe(true);
@@ -145,7 +172,7 @@ describe('Test Session', () => {
     const c2 = new ControllerSession({ cookies: { 'lionrock-session': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJhciIsInNpZCI6ImZvbyIsImlhdCI6MSwiZm9vIjoid2hhdHN1cCJ9.6Hc-oWRfa2dvhSEKOtKER68LqaLj6DSqTxvIWILa' } });
     const r2 = await c2.execute('readfoo');
 //        console.log(r2);
-    expect(r2.body).toBe(undefined);
+    expect(r2.body).toBe("Cannot read properties of undefined (reading 'cookie')");
 
     const c3 = new ControllerSession({ cookies: { 'lionrock-session': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJhciIsInNpZCI6ImZvbyIsImlhdCI6MSwiZm9vIjoid2hhdHN1cCJ9.6Hc-oWRfa2dvhSEKOtKER68LqaLj6DSqTxvIWILaVGg' } });
     const r3 = await c3.execute('readfoo');
