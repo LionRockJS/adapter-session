@@ -1,5 +1,4 @@
-import {Central} from '@lionrockjs/central';
+import {ControllerMixinSession} from "@lionrockjs/mixin-session";
+import {SessionJWT} from "./index.js";
 
-await Central.initConfig(new Map([[
-  'session', await import('./config/session.mjs')
-]]))
+ControllerMixinSession.defaultAdapter = SessionJWT;
