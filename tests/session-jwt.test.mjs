@@ -64,7 +64,7 @@ describe('Test Session', () => {
 
   test('no session', async () => {
     const c = new ControllerSession({ cookies: {} });
-    const result = await c.execute();
+    const result = await c.execute(null, true);
     const session = c.state.get(Controller.STATE_REQUEST).session;
     expect(session.creator).toBe('SessionJWT');
 
