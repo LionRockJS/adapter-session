@@ -62,17 +62,18 @@ describe('Test Session', () => {
 
   test('session created', async () => {
     const c = new ControllerSession({ cookies: {} }, { saveUninitialized: true });
-    const result = await c.execute();
+    const result = await c.execute(null, true);
     const request = c.state.get(Controller.STATE_REQUEST);
+
     expect(typeof request.session).toBe('object');
   });
 
   test('save uninitialized', async () => {
     const c = new ControllerSession({ cookies: {} }, { saveUninitialized: true });
-    const result = await c.execute();
+    const result = await c.execute(null, true);
+    const request = c.state.get(Controller.STATE_REQUEST);
 
     const cookie = result.cookies.find(({ name }) => name === 'lionrock-session');
-    console.log(result.cookies);
     expect(!!cookie).toBe(true);
 
     const ssid = cookie.value;
