@@ -3,23 +3,11 @@
   "name": "@lionrockjs/adapter-session-database",
   "version": "0.0.3",
   "description": "LionRockJS session adapter using database",
-  "main": "index.js",
+  "main": "classes/index.js",
+  "types": "types/index.d.ts",
   "scripts": {
-    "test": "node --experimental-vm-modules ../../../node_modules/jest/bin/jest.js --coverage"
-  },
-  "jest": {
-    "verbose": true,
-    "transform": {},
-    "testMatch": [
-      "**/__tests__/**/*.[jt]s?(x)",
-      "**/?(*.)+(spec|test).[jt]s?(x)",
-      "**/?(*.)+(spec|test).mjs"
-    ],
-    "moduleFileExtensions": [
-      "js",
-      "jsx",
-      "mjs"
-    ]
+    "build": "tsc",
+    "watch": "tsc -w"
   },
   "repository": {
     "type": "git",
@@ -38,5 +26,9 @@
   },
   "homepage": "https://github.com/LionRockJS/adapter-session#readme",
   "dependencies": {
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "@types/node": "^20.10.5"
   }
 }
