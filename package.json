@@ -3,7 +3,7 @@
   "name": "@lionrockjs/adapter-session-jwt",
   "version": "0.0.3",
   "description": "LionRockJS session adapter using JWT",
-  "main": "classes/index.js",
+  "main": "dist/index.js",
   "types": "types/index.d.ts",
   "scripts": {
     "build": "tsc",
@@ -25,11 +25,11 @@
   },
   "homepage": "https://github.com/LionRockJS/adapter-session#readme",
   "dependencies": {
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.3"
   },
   "devDependencies": {
-    "typescript": "^5.3.3",
-    "@types/node": "^20.10.5",
-    "@types/jsonwebtoken": "^9.0.5"
+    "typescript": "^6.0.3",
+    "@types/node": "^25.6.2",
+    "@types/jsonwebtoken": "^9.0.10"
   }
 }
