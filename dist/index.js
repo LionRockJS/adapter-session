@@ -1,4 +1,10 @@
-export { default as SessionJWT } from './helper/session/JWT.mjs';
+import ConfigSession from './config/session.mjs';
+import SessionJWT from './helper/session/JWT.mjs';
 import { ControllerMixinSession } from "@lionrockjs/mixin-session";
-import { SessionJWT } from "./index.js";
 ControllerMixinSession.defaultAdapter = SessionJWT;
+export default {
+    configs: {
+        session: ConfigSession,
+    }
+};
+export { SessionJWT };
