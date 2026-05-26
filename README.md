@@ -59,5 +59,43 @@ it also queues a rotated refresh-token cookie.
 
 Refresh tokens in this adapter are still stateless JWTs. That is convenient for
 Workers, but it cannot detect replay or revoke a stolen refresh token on its own.
-For admin deployments that need strong logout/revocation, store refresh token ids
-or session versions in a database and check them on every refresh.
+
+## DB-backed jti
+
+`SessionJWT` can persist and verify JWT ids (`jti`) with your database.
+Enable `session.jti` and provide `persist` and `verify` callbacks.
+
+```js
+const refreshJtiTable = new Map();
+
+export default {
+  refreshToken: {
+    enabled: true,
+    rotate: true,
+  },
+  jti: {
+    enabled: true,
+    tokenUse: 'refresh', // access | refresh | both
+    require: true,
+    async persist({ jti, session, exp, tokenUse }) {
+      if (tokenUse !== 'refresh') return;
+      refreshJtiTable.set(session.sid, { jti, exp });
+    },
+    async verify({ jti, session, tokenUse }) {
+      if (tokenUse !== 'refresh') return true;
+      return refreshJtiTable.get(session.sid)?.jti === jti;
+    },
+  },
+}
+```
+
+Callback arguments:
+
+1. `jti`: JWT id claim.
+2. `session`: session payload (`id`, `sid`, and custom fields).
+3. `tokenUse`: `access` or `refresh`.
+4. `exp`: token expiration timestamp (seconds).
+5. `payload`: full JWT payload.
+6. `config` and `options`: merged session config and request options.
+
+If `verify` returns `false`, the token is rejected as revoked.

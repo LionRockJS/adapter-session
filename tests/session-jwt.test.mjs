@@ -248,6 +248,105 @@ describe('Test Session', () => {
     await c1.execute();
   });
 
+  test('db-backed jti can revoke access token', async () => {
+    const secret = '01234567890123456789012345678901';
+    const jtiBySid = new Map();
+    const cookies = [];
+    const options = {
+      secret,
+      minimumSecretLength: 32,
+      jti: {
+        enabled: true,
+        tokenUse: 'access',
+        persist: async ({ jti, session }) => {
+          jtiBySid.set(session.sid, jti);
+        },
+        verify: async ({ jti, session }) => jtiBySid.get(session.sid) === jti,
+      },
+    };
+    const session = {
+      ...SessionAdapterJWT.create(),
+      foo: 'bar',
+    };
+
+    await SessionAdapterJWT.write(session, cookies, options);
+
+    const accessCookie = cookies.find(({ name }) => name === 'lionrock-session');
+    expect(!!accessCookie).toBe(true);
+
+    const firstRead = await SessionAdapterJWT.read({ 'lionrock-session': accessCookie.value }, options);
+    expect(firstRead.foo).toBe('bar');
+
+    jtiBySid.set(session.sid, 'revoked');
+
+    await expect(SessionAdapterJWT.read({ 'lionrock-session': accessCookie.value }, options)).rejects.toThrow('JWT session jti is invalid or revoked.');
+  });
+
+  test('db-backed jti rotates with refresh token', async () => {
+    const secret = 'abcdefghijklmnopqrstuvwxyz123456';
+    const jtiBySid = new Map();
+    const issueState = new Map([
+      ['cookies', []],
+      ['request', { env: {} }],
+    ]);
+    const issueOptions = {
+      secret,
+      minimumSecretLength: 32,
+      refreshToken: {
+        enabled: true,
+        rotate: true,
+        expires: 60 * 60,
+      },
+      accessToken: {
+        expires: 60,
+      },
+      jti: {
+        enabled: true,
+        tokenUse: 'refresh',
+        persist: async ({ jti, session }) => {
+          jtiBySid.set(session.sid, jti);
+        },
+        verify: async ({ jti, session }) => jtiBySid.get(session.sid) === jti,
+      },
+      state: issueState,
+    };
+    const session = {
+      ...SessionAdapterJWT.create(),
+      foo: 'refresh-ok',
+    };
+    const writeCookies = [];
+
+    await SessionAdapterJWT.write(session, writeCookies, issueOptions);
+
+    const refreshCookie = writeCookies.find(({ name }) => name === 'lionrock-session-refresh');
+    expect(!!refreshCookie).toBe(true);
+
+    const oldRefreshPayload = JWT.verify(refreshCookie.value, secret);
+    const oldRefreshJti = oldRefreshPayload.jti;
+
+    const readState = new Map([
+      ['cookies', []],
+      ['request', { env: {} }],
+    ]);
+    const readOptions = {
+      ...issueOptions,
+      state: readState,
+    };
+    const refreshedSession = await SessionAdapterJWT.read({
+      'lionrock-session-refresh': refreshCookie.value,
+    }, readOptions);
+
+    expect(refreshedSession.foo).toBe('refresh-ok');
+
+    const queuedCookies = readState.get('cookies');
+    const rotatedRefreshCookie = queuedCookies.find(({ name }) => name === 'lionrock-session-refresh');
+    expect(!!rotatedRefreshCookie).toBe(true);
+
+    const newRefreshPayload = JWT.verify(rotatedRefreshCookie.value, secret);
+    expect(newRefreshPayload.jti).not.toBe(oldRefreshJti);
+    expect(jtiBySid.get(session.sid)).toBe(newRefreshPayload.jti);
+  });
+
   test('delete expired sessions', async () => {
     // set dummy data
     // create a session

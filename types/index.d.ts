@@ -15,6 +15,11 @@ declare const _default: {
                 expires: number;
                 rotate: boolean;
             };
+            jti: {
+                enabled: boolean;
+                tokenUse: string;
+                require: boolean;
+            };
             clockTolerance: number;
             minimumSecretLength: number;
             maxTokenLength: number;

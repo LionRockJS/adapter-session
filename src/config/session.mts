@@ -12,6 +12,11 @@ export default {
     expires: 60 * 60 * 24 * 30,
     rotate: true,
   },
+  jti: {
+    enabled: false,
+    tokenUse: 'refresh',
+    require: true,
+  },
   clockTolerance: 60,
   minimumSecretLength: 32,
   maxTokenLength: 4096,

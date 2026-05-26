@@ -7,7 +7,101 @@ const hmacAlgorithms = {
     HS384: 'SHA-384',
     HS512: 'SHA-512',
 };
-const reservedClaims = new Set(['aud', 'exp', 'iat', 'iss', 'nbf', 'token_use']);
+const reservedClaims = new Set(['aud', 'exp', 'iat', 'iss', 'jti', 'nbf', 'token_use']);
+function normalizeJtiTokenUse(value, refreshEnabled) {
+    if (value === undefined || value === null) {
+        return refreshEnabled ? 'refresh' : 'access';
+    }
+    if (value === 'access' || value === 'refresh' || value === 'both')
+        return value;
+    throw new Error('JWT jti.tokenUse must be access, refresh, or both.');
+}
+function resolveCurrentTokenUse(tokenUse) {
+    return tokenUse ?? 'access';
+}
+function getJtiConfig(config) {
+    const refreshConfig = getRefreshTokenConfig(config);
+    const jti = config.jti;
+    const jtiConfig = jti === true ? {} : jti || {};
+    const enabled = jti === true || !!(jti && jtiConfig.enabled !== false);
+    return {
+        enabled,
+        tokenUse: normalizeJtiTokenUse(jtiConfig.tokenUse, refreshConfig.enabled),
+        require: jtiConfig.require !== false,
+        generate: jtiConfig.generate,
+        persist: jtiConfig.persist,
+        verify: jtiConfig.verify,
+    };
+}
+function shouldHandleJti(config, tokenUse) {
+    const jtiConfig = getJtiConfig(config);
+    if (!jtiConfig.enabled)
+        return false;
+    const currentTokenUse = resolveCurrentTokenUse(tokenUse);
+    return jtiConfig.tokenUse === 'both' || jtiConfig.tokenUse === currentTokenUse;
+}
+async function createJti(session, config, options, tokenUse) {
+    if (!shouldHandleJti(config, tokenUse))
+        return undefined;
+    const jtiConfig = getJtiConfig(config);
+    const currentTokenUse = resolveCurrentTokenUse(tokenUse);
+    let jti = randomUUID();
+    if (typeof jtiConfig.generate === 'function') {
+        jti = await jtiConfig.generate({
+            config,
+            options,
+            session,
+            tokenUse: currentTokenUse,
+        });
+    }
+    if (typeof jti !== 'string' || jti.length === 0) {
+        throw new Error('JWT jti.generate must return a non-empty string.');
+    }
+    return jti;
+}
+async function persistJti(payload, session, config, options, tokenUse) {
+    if (!payload.jti || !shouldHandleJti(config, tokenUse))
+        return;
+    const jtiConfig = getJtiConfig(config);
+    if (typeof jtiConfig.persist !== 'function')
+        return;
+    await jtiConfig.persist({
+        config,
+        exp: payload.exp,
+        jti: payload.jti,
+        options,
+        payload,
+        session,
+        tokenUse: resolveCurrentTokenUse(tokenUse),
+    });
+}
+async function verifyJti(payload, config, options, tokenUse) {
+    if (!shouldHandleJti(config, tokenUse))
+        return;
+    const jtiConfig = getJtiConfig(config);
+    if (!payload.jti) {
+        if (jtiConfig.require)
+            throw new Error('JWT session is missing jti.');
+        return;
+    }
+    if (typeof jtiConfig.verify !== 'function')
+        return;
+    const isValid = await jtiConfig.verify({
+        config,
+        exp: payload.exp,
+        jti: payload.jti,
+        options,
+        payload,
+        session: {
+            ...SessionJWT.create(),
+            ...toSessionData(payload),
+        },
+        tokenUse: resolveCurrentTokenUse(tokenUse),
+    });
+    if (isValid === false) {
+        throw jwtError('JWT session jti is invalid or revoked.', 'JWT_JTI_REVOKED');
+    }
+}
 function randomUUID() {
     if (crypto.randomUUID)
         return crypto.randomUUID();
@@ -270,6 +364,7 @@ async function signToken(session, config, tokenConfig, options, tokenUse) {
         payload.aud = config.audience;
     if (tokenUse)
         payload.token_use = tokenUse;
+    payload.jti = await createJti(session, config, options, tokenUse);
     const signingInput = `${encodeJson(header)}.${encodeJson(payload)}`;
     const key = await importHmacKey(getCurrentSecret(options, config), algorithm, ['sign']);
     const signature = await crypto.subtle.sign('HMAC', key, textEncoder.encode(signingInput));
@@ -277,6 +372,7 @@ async function signToken(session, config, tokenConfig, options, tokenUse) {
     const maxTokenLength = Number(config.maxTokenLength ?? 4096);
     if (jwt.length > maxTokenLength)
         throw new Error('JWT session cookie is too large.');
+    await persistJti(payload, session, config, options, tokenUse);
     return jwt;
 }
 async function verifyToken(token, config, options, tokenConfig, tokenUse, allowMissingTokenUse = false) {
@@ -308,6 +404,7 @@ async function verifyToken(token, config, options, tokenConfig, tokenUse, allowM
     assertClaimTimes(payload, config, tokenConfig.expires);
     assertIssuerAndAudience(payload, config);
     assertTokenUse(payload, tokenUse, allowMissingTokenUse);
+    await verifyJti(payload, config, options, tokenUse);
     return payload;
 }
 function getResponseCookies(options) {
