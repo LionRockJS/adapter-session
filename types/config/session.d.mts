@@ -4,5 +4,16 @@ declare const _default: {
     resave: boolean;
     name: string;
     expires: number;
+    accessToken: {
+        expires: number;
+    };
+    refreshToken: {
+        enabled: boolean;
+        expires: number;
+        rotate: boolean;
+    };
+    clockTolerance: number;
+    minimumSecretLength: number;
+    maxTokenLength: number;
 };
 export default _default;

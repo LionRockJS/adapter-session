@@ -1,7 +1,18 @@
 export default {
-  algorithm: 'RS256',
+  algorithm: 'HS256',
   saveUninitialized: false,
   resave: false,
   name: 'lionrock-session',
   expires: 60 * 60 * 4,
+  accessToken: {
+    expires: 60 * 60 * 4,
+  },
+  refreshToken: {
+    enabled: false,
+    expires: 60 * 60 * 24 * 30,
+    rotate: true,
+  },
+  clockTolerance: 60,
+  minimumSecretLength: 32,
+  maxTokenLength: 4096,
 }
