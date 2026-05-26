@@ -20,6 +20,7 @@ declare const _default: {
                 tokenUse: string;
                 require: boolean;
             };
+            authorizationHeader: boolean;
             clockTolerance: number;
             minimumSecretLength: number;
             maxTokenLength: number;

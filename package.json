@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@lionrockjs/adapter-session-jwt",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "LionRockJS session adapter using JWT",
   "main": "dist/index.js",
   "types": "types/index.d.ts",

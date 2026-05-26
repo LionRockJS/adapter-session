@@ -17,6 +17,7 @@ export default {
     tokenUse: 'refresh',
     require: true,
   },
+  authorizationHeader: false,
   clockTolerance: 60,
   minimumSecretLength: 32,
   maxTokenLength: 4096,

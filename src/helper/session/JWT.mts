@@ -278,6 +278,29 @@ function getProcessEnv() {
   return Central.runtime?.process?.()?.env ?? (globalThis as any).process?.env ?? {};
 }
 
+function getTokenFromAuthorizationHeader(options: any): string | null {
+  const request = options?.state?.get?.('request');
+  const headers = request?.headers;
+  if (!headers) return null;
+
+  const authorization: string | undefined =
+    typeof headers.get === 'function' ? headers.get('authorization') : headers.authorization;
+  if (typeof authorization !== 'string') return null;
+
+  const lower = authorization.toLowerCase();
+  if (!lower.startsWith('bearer ')) return null;
+
+  return authorization.slice(7).trim() || null;
+}
+
+function writeResponseTokenHeaders(options: any, accessToken?: string, refreshToken?: string) {
+  const headers = options?.state?.get?.('headers');
+  if (!headers || typeof headers !== 'object') return;
+
+  if (accessToken) headers['x-access-token'] = accessToken;
+  if (refreshToken) headers['x-refresh-token'] = refreshToken;
+}
+
 function normalizeSecretList(value: any): string[] {
   if (typeof value === 'string' && value.length > 0) return [value];
   if (!Array.isArray(value)) return [];
@@ -511,11 +534,15 @@ async function queueAccessToken(session: SessionData, config: any, options: any)
   if (!responseCookies) return;
 
   const accessConfig = getAccessTokenConfig(config);
+  const token = await signToken(session, config, accessConfig, options, 'access');
+
   responseCookies.push({
     name: accessConfig.name,
-    value: await signToken(session, config, accessConfig, options, 'access'),
+    value: token,
     options: getCookieOptions(config, accessConfig),
   });
+
+  if (config.authorizationHeader) writeResponseTokenHeaders(options, token);
 }
 
 async function queueRefreshToken(session: SessionData, config: any, options: any) {
@@ -523,11 +550,15 @@ async function queueRefreshToken(session: SessionData, config: any, options: any
   if (!responseCookies) return;
 
   const refreshConfig = getRefreshTokenConfig(config);
+  const token = await signToken(session, config, refreshConfig, options, 'refresh');
+
   responseCookies.push({
     name: refreshConfig.name,
-    value: await signToken(session, config, refreshConfig, options, 'refresh'),
+    value: token,
     options: getCookieOptions(config, refreshConfig, refreshConfig.expires),
   });
+
+  if (config.authorizationHeader) writeResponseTokenHeaders(options, undefined, token);
 }
 
 async function readWithRefreshToken(cookies: Record<string, string>, config: any, options: any) {
@@ -552,6 +583,17 @@ export default class SessionJWT extends AbstractAdapterSession {
     const config = getConfig(options);
     const refreshConfig = getRefreshTokenConfig(config);
     const accessConfig = getAccessTokenConfig(config);
+
+    // When authorizationHeader is enabled, try Bearer token from the Authorization header first.
+    // This allows cross-domain clients to pass the JWT in the Authorization header instead of cookies.
+    if (config.authorizationHeader) {
+      const headerToken = getTokenFromAuthorizationHeader(options);
+      if (headerToken) {
+        const payload = await verifyToken(headerToken, config, options, accessConfig, refreshConfig.enabled ? 'access' : undefined, true);
+        return { ...this.create(), ...toSessionData(payload) } as SessionData;
+      }
+    }
+
     const accessToken = cookies[accessConfig.name];
 
     if (accessToken) {
@@ -582,18 +624,25 @@ export default class SessionJWT extends AbstractAdapterSession {
 
     if (!session.id) session.id = randomUUID();
 
+    const accessToken = await signToken(session, config, accessConfig, options, refreshConfig.enabled ? 'access' : undefined);
     cookies.push({
       name: accessConfig.name,
-      value: await signToken(session, config, accessConfig, options, refreshConfig.enabled ? 'access' : undefined),
+      value: accessToken,
       options: getCookieOptions(config, accessConfig),
     });
 
-    if (!refreshConfig.enabled) return;
+    if (!refreshConfig.enabled) {
+      if (config.authorizationHeader) writeResponseTokenHeaders(options, accessToken);
+      return;
+    }
 
+    const refreshToken = await signToken(session, config, refreshConfig, options, 'refresh');
     cookies.push({
       name: refreshConfig.name,
-      value: await signToken(session, config, refreshConfig, options, 'refresh'),
+      value: refreshToken,
       options: getCookieOptions(config, refreshConfig, refreshConfig.expires),
     });
+
+    if (config.authorizationHeader) writeResponseTokenHeaders(options, accessToken, refreshToken);
   }
 }
