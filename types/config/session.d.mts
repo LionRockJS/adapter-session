@@ -18,6 +18,7 @@ declare const _default: {
         require: boolean;
     };
     authorizationHeader: boolean;
+    cookieDomain: string | undefined;
     clockTolerance: number;
     minimumSecretLength: number;
     maxTokenLength: number;

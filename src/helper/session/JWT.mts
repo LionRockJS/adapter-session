@@ -250,7 +250,7 @@ function getRefreshTokenConfig(config: any) {
 
   return {
     enabled,
-    name: refreshConfig.name ?? defaultName,
+    name: getEffectiveCookieName(refreshConfig.name ?? defaultName, config),
     expires,
     cookieMaxAge: refreshConfig.cookieMaxAge ?? expires,
     cookieOptions: refreshConfig.cookieOptions ?? {},
@@ -263,7 +263,7 @@ function getAccessTokenConfig(config: any) {
   const expires = getPositiveSeconds(accessConfig.expires ?? config.expires, 60 * 60 * 2, 'JWT accessToken.expires');
 
   return {
-    name: accessConfig.name ?? config.name,
+    name: getEffectiveCookieName(accessConfig.name ?? config.name, config),
     expires,
     cookieMaxAge: accessConfig.cookieMaxAge ?? config.cookieMaxAge,
     cookieOptions: accessConfig.cookieOptions ?? {},
@@ -276,6 +276,21 @@ function getRequestEnv(options: any) {
 
 function getProcessEnv() {
   return Central.runtime?.process?.()?.env ?? (globalThis as any).process?.env ?? {};
+}
+
+// config.state is the controller state map (merged in via getConfig({ state })).
+// This lets us read per-request env vars without threading `options` everywhere.
+function getCookieDomain(config: any): string | undefined {
+  const requestEnv = config?.state?.get?.('request')?.env ?? {};
+  const processEnv = Central.runtime?.process?.()?.env ?? (globalThis as any).process?.env ?? {};
+  return config.cookieDomain ?? requestEnv.COOKIE_DOMAIN ?? processEnv.COOKIE_DOMAIN ?? undefined;
+}
+
+// __Host- cookies cannot carry a Domain attribute; auto-strip the prefix when a
+// domain is configured so the browser accepts and shares the cookie.
+function getEffectiveCookieName(name: string, config: any): string {
+  if (getCookieDomain(config) && name.startsWith('__Host-')) return name.slice(8);
+  return name;
 }
 
 function getTokenFromAuthorizationHeader(options: any): string | null {
@@ -450,6 +465,9 @@ function getCookieOptions(config: any, tokenConfig: any = {}, fallbackMaxAge?: n
     ...cookieOptions,
     ...(tokenConfig.cookieOptions ?? {}),
   };
+
+  const domain = getCookieDomain(config);
+  if (domain) options.domain = domain;
 
   const maxAge = tokenConfig.cookieMaxAge ?? fallbackMaxAge;
   if (maxAge !== undefined) options.maxAge = Number(maxAge);

@@ -18,6 +18,7 @@ export default {
     require: true,
   },
   authorizationHeader: false,
+  cookieDomain: undefined as string | undefined,
   clockTolerance: 60,
   minimumSecretLength: 32,
   maxTokenLength: 4096,
