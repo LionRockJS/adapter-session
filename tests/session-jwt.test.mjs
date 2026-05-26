@@ -4,10 +4,9 @@ import dotenv from 'dotenv';
 dotenv.config({path: path.normalize(__dirname + '/.env')});
 
 import path from 'node:path';
-import fs from 'node:fs';
 import { Central, Controller } from '@lionrockjs/central';
 import {ControllerMixinSession} from '@lionrockjs/mixin-session';
-import SessionAdapterJWT from "../classes/helper/session/JWT.mjs";
+import SessionAdapterJWT from "../dist/helper/session/JWT.mjs";
 
 import JWT from 'jsonwebtoken';
 
@@ -44,10 +43,11 @@ class ControllerSessionNoDB extends Controller {
 
 describe('Test Session', () => {
   beforeEach(async () => {
-    await Central.init({ EXE_PATH: `${__dirname}/test1`});
-
-    Central.classPath.set('ControllerSession', path.normalize(`${__dirname}/../classes/ControllerSession.mjs`));
-//    await Central.flushCache();
+    await Central.addConfig(new Map([
+      ['cookie', await import('./test1/application/config/cookie.mjs')],
+      ['session', await import('./test1/application/config/session.mjs')],
+    ]));
+    ControllerMixinSession.defaultAdapter = SessionAdapterJWT;
   });
 
   test('session adapter', async () => {
@@ -75,6 +75,42 @@ describe('Test Session', () => {
   test('config', async()=>{
     expect(process.env.SESSION_SECRET).toBe('shhhhh');
   })
+
+  test('request env session secret has priority', async () => {
+    const options = { state: new Map([['request', { env: { SESSION_SECRET: 'worker-secret' } }]]) };
+    const session = { ...SessionAdapterJWT.create(), foo: 'worker' };
+    const cookies = [];
+
+    await SessionAdapterJWT.write(session, cookies, options);
+
+    const cookie = cookies.find(({ name }) => name === 'lionrock-session');
+    expect(!!cookie).toBe(true);
+    expect(() => JWT.verify(cookie.value, process.env.SESSION_SECRET)).toThrow();
+    expect(JWT.verify(cookie.value, 'worker-secret').foo).toBe('worker');
+
+    const readSession = await SessionAdapterJWT.read({ 'lionrock-session': cookie.value }, options);
+    expect(readSession.foo).toBe('worker');
+  });
+
+  test('config session secret fallback', async () => {
+    const originalSecret = process.env.SESSION_SECRET;
+    delete process.env.SESSION_SECRET;
+    Central.config.session.secret = 'config-secret';
+
+    try {
+      const session = { ...SessionAdapterJWT.create(), foo: 'config' };
+      const cookies = [];
+
+      await SessionAdapterJWT.write(session, cookies, {});
+
+      const cookie = cookies.find(({ name }) => name === 'lionrock-session');
+      expect(!!cookie).toBe(true);
+      expect(JWT.verify(cookie.value, 'config-secret').foo).toBe('config');
+    } finally {
+      process.env.SESSION_SECRET = originalSecret;
+      delete Central.config.session.secret;
+    }
+  });
 
   test('save uninitialized', async () => {
     const c = new ControllerSession({ cookies: {} }, { saveUninitialized: true });
